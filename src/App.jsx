@@ -1,14 +1,16 @@
 import { useState } from "react";
-// import Login from "./components/login";
-import { db } from "./config/firebase";
+import Login from "./components/login";
+import { db, auth, storage } from "./config/firebase";
 import {
   addDoc,
   collection,
   getDocs,
   deleteDoc,
   doc,
+  updateDoc,
 } from "firebase/firestore";
 import { useEffect } from "react";
+import { ref, uploadBytes } from "firebase/storage";
 function App() {
   const [movies, setMovies] = useState([]);
   const [title, setTitle] = useState("");
@@ -16,6 +18,7 @@ function App() {
   const [actor, setActor] = useState("");
   const [actors, setActors] = useState([]);
   const [hasOscar, setHasOscar] = useState(false);
+  const [fileUpload, setFileUpload] = useState(null);
 
   const moviesCollectionRef = collection(db, "movies");
   const getMovies = async () => {
@@ -30,13 +33,20 @@ function App() {
       console.error(error);
     }
   };
-  const deleteMovie = async (id) => {
-    const movieDoc = doc(db, "movies", id);
-    await deleteDoc(movieDoc);
-  };
   const addActor = () => {
     setActors([...actors, actor]);
     setActor("");
+  };
+  const onUpdateMovie = async (id) => {
+    const movieDoc = doc(db, "movies", id);
+    await updateDoc(movieDoc, {
+      title: title,
+      
+    });
+  }
+  const onDeleteMovie = async (id) => {
+    const movieDoc = doc(db, "movies", id);
+    await deleteDoc(movieDoc);
   };
   const onAddMovie = async (e) => {
     e.preventDefault;
@@ -46,16 +56,22 @@ function App() {
         year: year,
         actors: actors,
         hasOscar: hasOscar,
+        uid: auth?.currentUser?.uid,
       });
     } catch (error) {
       console.error(error);
     }
   };
+  const onUploadFile = async () => {
+    const storageRef = ref(storage, "7oza/" + fileUpload.name);
+    await uploadBytes(storageRef, fileUpload);
+  }
   useEffect(() => {
     getMovies();
-  }, [deleteDoc, onAddMovie]);
+  }, [onDeleteMovie, onAddMovie]);
   return (
     <div>
+      <Login />
       <div>
         <input
           type="text"
@@ -83,6 +99,8 @@ function App() {
         />
         <label>Has Oscar</label>
         <button onClick={onAddMovie}>add movie</button>
+        <input type="file" onChange={(e) => setFileUpload(e.target.files)} />
+        <button onClick={onUploadFile}>upload file</button>
       </div>
       <div style={{ display: "flex", gap: "30px" }}>
         {movies.map((movie) => (
@@ -94,7 +112,9 @@ function App() {
             {movie.actors.map((actor, i) => (
               <p key={i}>{actor}</p>
             ))}
-            <button onClick={() => deleteMovie(movie.id)}>delete movie</button>
+            <button onClick={() => onDeleteMovie(movie.id)}>delete movie</button>
+            <input type="text" onChange={(e) => setTitle(e.target.value)} />
+            <button onClick={() => onUpdateMovie(movie.id)}>update title</button>
           </div>
         ))}
       </div>
